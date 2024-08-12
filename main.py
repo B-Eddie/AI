@@ -1,20 +1,31 @@
-import tensorflow as tf
-from tensorflow.keras import layers, models
-import numpy as np
-import cv2
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import torchvision.transforms as transforms
+from torch.utils.data import DataLoader, Dataset
+import pandas as pd
 import os
+from PIL import Image
 
-# Load your dataset
-def load_data(data_dir):
-    images = []
-    labels = []
-    for person_dir in os.listdir(data_dir):
-        person_path = os.path.join(data_dir, person_dir)
-        for img_name in os.listdir(person_path):
-            img_path = os.path.join(person_path, img_name)
-            img = cv2.imread(img_path)
-            img = cv2.resize(img, (224, 224))
-            images.append(img)
-            # For simplicity, assuming labels are stored as a tuple (age, sex, emotion) in a separate file or inferred
-            labels.append(get_label_for_image(img_name))
-    return np.array(images), np.array(labels)
+# Custom dataset class
+class CustomDataset(Dataset):
+    def __init__(self, csv_file, data_dir, transform=None):
+        self.labels = pd.read_csv(csv_file)
+        self.data_dir = data_dir
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.labels)
+
+    def __getitem__(self, idx):
+        img_name = os.path.join(self.data_dir, self.labels.iloc[idx, 0])
+        img = Image.open(img_name).convert('RGB')
+
+        if self.transform:
+            img = self.transform(img)
+
+        age = torch.tensor(self.labels.iloc[idx, 1], dtype=torch.float32)
+        sex = torch.tensor(self.labels.iloc[idx, 2], dtype=torch.float32)
+        emotion = torch.tensor(self.labels.iloc[idx, 3], dtype=torch.long)
+
+        return img, age, sex, emotion
